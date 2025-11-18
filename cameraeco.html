@@ -704,6 +704,37 @@ async function handleGPSButton() {
     btnSettings.disabled = false; // G7
   }
 }
+// ============ AUTO GPS BACKGROUND MODE ============
+function startAutoGPSWatcher() {
+  if (!navigator.geolocation) return;
+
+  navigator.geolocation.watchPosition(
+    (pos) => {
+      const { latitude, longitude, accuracy } = pos.coords;
+
+      // Abaikan sinyal buruk
+      if (!accuracy || accuracy > 50) return;
+
+      // Simpan koordinat otomatis
+      lastGPS = {
+        koordinat: `${latitude.toFixed(6)},${longitude.toFixed(6)}`,
+        akurasi: accuracy.toFixed(1),
+        n: 1
+      };
+
+      // Update UI
+      lokasiInput.value = lastGPS.koordinat;
+      ovLokasi.textContent = lastGPS.koordinat;
+      updateGPSUI(`GPS: ±${accuracy.toFixed(0)}m`, accuracy);
+    },
+    (err) => {
+      console.warn("Auto GPS error:", err);
+      updateGPSUI("GPS: Gagal", 999);
+    },
+    { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
+  );
+}
+
 
 // ============ Overlay drag (DINONAKTIFKAN) ============
 /* G4: Fungsi geser dinonaktifkan
@@ -1013,10 +1044,10 @@ async function capture(){
   // --- AKHIR PERBAIKAN ---
 
   
-  if (lastGPS.akurasi > 20) {
-    showToast(`Akurasi GPS buruk (${lastGPS.akurasi}m). Ambil ulang GPS.`, 0);
-    return;
-  }
+ if (lastGPS.akurasi > 10) {
+  showToast(`Akurasi kurang bagus (${lastGPS.akurasi}m). Tetap disimpan.`, 0.5);
+}
+
   
   const id = genId();
   const tinggi = parseInt(tinggiInput.value||tinggiRange.value,10) || 10;
@@ -1432,7 +1463,10 @@ handle.addEventListener('click', toggleSheet); // Tetap
 // ============ Init ============
 (async function init(){
   checkCompatibility();
-  
+
+  // 🔥 Hidupkan GPS otomatis di belakang layar
+  startAutoGPSWatcher();
+
   try{
     await listCameras();
     initMap();
